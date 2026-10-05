@@ -3,6 +3,7 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Fraunces:ital,wght@1,600&display=swap" rel="stylesheet">
 <style>
   :root{--bg:#0e0d0c;--panel:#1b1917;--ink:#f3ead8;--muted:#9a9082;--accent:#ff6b2c}
@@ -11,20 +12,13 @@
   header{position:sticky;top:0;z-index:5;background:#0e0d0ce6;backdrop-filter:blur(10px);padding:16px 20px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #2a2622}
   h1{font-family:'Fraunces',serif;font-style:italic;font-size:24px}
   .meta{font-size:11px;color:var(--muted);margin-top:2px}
-  .live{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--accent);margin-right:6px;animation:p 1.4s infinite}
-  @keyframes p{50%{opacity:.25}}
+  .live{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--accent);margin-right:6px}
   .link{color:var(--accent);text-decoration:none;font-size:12px;border:1px solid var(--accent);padding:8px 12px;border-radius:999px}
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px;padding:20px;max-width:1400px;margin:0 auto}
-  .print{background:#f4efe4;padding:8px 8px 30px;border-radius:3px;box-shadow:0 8px 20px #0009;cursor:pointer;transition:transform .25s;position:relative;animation:in .5s ease both}
-  .print:nth-child(odd){transform:rotate(-1.2deg)} .print:nth-child(even){transform:rotate(1deg)}
-  .print:hover{transform:rotate(0) scale(1.04);z-index:2}
-  .print img{width:100%;aspect-ratio:1;object-type:cover;display:block;background:#222}
+  .print{background:#f4efe4;padding:8px 8px 30px;border-radius:3px;box-shadow:0 8px 20px #0009;cursor:pointer;position:relative}
+  .print img{width:100%;aspect-ratio:1;object-fit:cover;display:block;background:#222}
   .print span{position:absolute;bottom:7px;left:10px;right:10px;color:#3a332a;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  @keyframes in{from{opacity:0;translate:0 12px}}
   .empty{text-align:center;color:var(--muted);padding:80px 20px}
-  .lb{position:fixed;inset:0;background:#000e;display:none;align-items:center;justify-content:center;z-index:9;padding:20px}
-  .lb img{max-width:100%;max-height:85vh;border-radius:4px}
-  .lb .cap{position:absolute;bottom:20px;left:0;right:0;text-align:center;font-size:12px;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -37,49 +31,32 @@
 </header>
 <div class="grid" id="grid"></div>
 <div class="empty" id="empty" style="display:none">Belum ada foto. Jadilah yang pertama! 📸</div>
-<div class="lb" id="lb" onclick="this.style.display='none'"><img id="lbImg"><div class="cap" id="lbCap"></div></div>
 
 <script>
-// ==========================================
-// GANTI URL DI BAWAH INI DENGAN WEB APP URL ANDA
-// ==========================================
-const API_URL = "https://script.google.com/macros/s/AKfycbyTta8AQ_7IUOvXQRwpE5CFYhG0w2uPsd7AjL13nH042HvmdFDVAbx_nqm66iJ30Ccm/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbzBjY38mQiz5BWfAQsrwela6QKd_KmLxUwFch1uOs8ffXkLZoFCho1CRbRF2Nzcjc28/exec";
 
-const REFRESH_MS = 10000;
-let lastTotal = -1;
 const grid = document.getElementById('grid');
-
 function esc(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-function timeAgo(iso){ const s=(Date.now()-new Date(iso))/1000; if(s<60)return 'baru saja'; if(s<3600)return Math.floor(s/60)+' mnt lalu'; if(s<86400)return Math.floor(s/3600)+' jam lalu'; return new Date(iso).toLocaleDateString('id-ID'); }
-
-function render(data){
-  document.getElementById('count').textContent = data.total + ' foto · live';
-  document.getElementById('empty').style.display = data.total ? 'none' : 'block';
-  if (data.total === lastTotal) return;
-  lastTotal = data.total;
-  grid.innerHTML = data.photos.map(p =>
-    '<div class="print" data-url="'+esc(p.url)+'" data-cap="'+esc(p.guestName+' · '+p.filter)+'">'+
-    '<img loading="lazy" src="'+esc(p.thumb)+'" alt=""><span>'+esc(p.guestName)+' · '+timeAgo(p.ts)+'</span></div>'
-  ).join('');
-}
-grid.addEventListener('click', e=>{
-  const card = e.target.closest('.print'); if(!card) return;
-  document.getElementById('lbImg').src = card.dataset.url;
-  document.getElementById('lbCap').textContent = card.dataset.cap;
-  document.getElementById('lb').style.display = 'flex';
-});
 
 async function load(){
   try {
     const res = await fetch(API_URL);
-    const data = await res.json();
-    render(data);
+    const resText = await res.text();
+    const cleanJson = resText.replace(/<\/?[^>]+(>|$)/g, "").trim();
+    const data = JSON.parse(cleanJson);
+    
+    document.getElementById('count').textContent = data.total + ' foto · live';
+    document.getElementById('empty').style.display = data.total ? 'none' : 'block';
+    
+    grid.innerHTML = data.photos.map(p =>
+      '<div class="print"><img loading="lazy" src="'+esc(p.thumb)+'" alt=""><span>'+esc(p.guestName)+'</span></div>'
+    ).join('');
   } catch(e) {
-    document.getElementById('count').textContent='Gagal memuat, mencoba lagi...';
+    document.getElementById('count').textContent='Gagal memuat';
   }
 }
 load();
-setInterval(()=>{ if(!document.hidden) load(); }, REFRESH_MS);
+setInterval(load, 10000);
 </script>
 </body>
 </html>
