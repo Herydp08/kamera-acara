@@ -3,9 +3,10 @@
 <head>
 <base target="_top">
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Fraunces:ital,wght@1,600&display=swap" rel="stylesheet">
 <style>
-  :root{--bg:#0e0d0c;--body:#1b1917;--panel:#26231f;--ink:#f3ead8;--muted:#9a9082;--accent:#ff6b2c;--ok:#7bd88f}
+  :root{--bg:#0e0d0c;--body:#1b1917;--panel:#26231f;--ink:#f3ead8;--muted:#9a9082;--accent:#ff6b2c}
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
   html,body{height:100%;background:var(--bg);color:var(--ink);font-family:'Space Mono',monospace}
   .app{max-width:480px;margin:0 auto;min-height:100%;display:flex;flex-direction:column;padding:16px;gap:14px}
@@ -14,7 +15,7 @@
   .link{color:var(--accent);text-decoration:none;font-size:12px;border:1px solid var(--accent);padding:6px 10px;border-radius:999px}
   .camera{background:linear-gradient(160deg,#2b2824,#151311);border-radius:28px;padding:14px;box-shadow:0 20px 50px #000a,inset 0 1px 0 #ffffff14}
   .topbar{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--muted);margin-bottom:10px;padding:0 4px}
-  .counter{background:#000;color:var(--accent);padding:4px 10px;border-radius:6px;font-weight:700;letter-spacing:1px;box-shadow:inset 0 0 8px #ff6b2c55}
+  .counter{background:#000;color:var(--accent);padding:4px 10px;border-radius:6px;font-weight:700;letter-spacing:1px}
   .viewfinder{position:relative;aspect-ratio:3/4;border-radius:18px;overflow:hidden;background:#000;border:3px solid #000}
   video,#preview{width:100%;height:100%;object-fit:cover;display:block}
   #preview{position:absolute;inset:0;display:none}
@@ -26,9 +27,8 @@
   .filters button.active{background:var(--accent);border-color:var(--accent);color:#1b1917;font-weight:700}
   .controls{display:flex;justify-content:space-around;align-items:center;padding:18px 0 6px}
   .small{width:52px;height:52px;border-radius:50%;background:var(--panel);border:1px solid #3a352f;color:var(--ink);font-size:20px}
-  .shutter{width:86px;height:86px;border-radius:50%;border:5px solid #e8dcc4;background:radial-gradient(circle at 35% 30%,#ff8a55,var(--accent) 60%,#c3471a);box-shadow:0 6px 0 #7a2c0f,0 10px 25px #ff6b2c55;transition:transform .08s}
+  .shutter{width:86px;height:86px;border-radius:50%;border:5px solid #e8dcc4;background:radial-gradient(circle at 35% 30%,#ff8a55,var(--accent) 60%,#c3471a);box-shadow:0 6px 0 #7a2c0f,0 10px 25px #ff6b2c55}
   .shutter:active{transform:translateY(4px);box-shadow:0 2px 0 #7a2c0f}
-  .shutter:disabled{filter:grayscale(1);opacity:.5}
   .actions{display:none;gap:10px}
   .actions button{flex:1;padding:14px;border-radius:14px;border:none;font:inherit;font-weight:700}
   .retake{background:var(--panel);color:var(--ink)}
@@ -43,7 +43,7 @@
 <body>
 <div class="app">
   <header>
-    <h1 id="eventTitle">Our Wedding Day</h1>
+    <h1>Our Wedding Day</h1>
     <a class="link" href="gallery.html">Galeri →</a>
   </header>
 
@@ -57,8 +57,8 @@
     </div>
     <div class="filters" id="filters"></div>
     <div class="controls" id="controls">
-      <button class="small" id="flipBtn" title="Ganti kamera">⟲</button>
-      <button class="shutter" id="shutter" aria-label="Ambil foto"></button>
+      <button class="small" id="flipBtn">⟲</button>
+      <button class="shutter" id="shutter"></button>
       <a class="small" href="gallery.html" style="display:flex;align-items:center;justify-content:center;text-decoration:none">▦</a>
     </div>
     <div class="actions" id="actions">
@@ -81,24 +81,20 @@
 <canvas id="canvas" style="display:none"></canvas>
 
 <script>
-// ==========================================
-// GANTI URL DI BAWAH INI DENGAN WEB APP URL ANDA
-// ==========================================
-const API_URL = "https://script.google.com/macros/s/AKfycbyDryr_GiD3-EWSwFOv-H7sxwvo0OtKkzR80AzgYRW5ziaJRmoPuLAM0vK_83Bwxsuv/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbzBjY38mQiz5BWfAQsrwela6QKd_KmLxUwFch1uOs8ffXkLZoFCho1CRbRF2Nzcjc28/exec";
 
 const CFG = {
   max: 15,
-  cloud: "rfth8pyv",
+  cloud: "rfth8pv",
   preset: "disposable-camera"
 };
 
 const FILTERS = {
   normal:  { label:'Normal',     css:'none', grain:0 },
   bw:      { label:'B&W',        css:'grayscale(1) contrast(1.2)', grain:.25 },
-  vintage: { label:'Vintage Warm', css:'sepia(.35) saturate(1.4) contrast(1.05) brightness(1.05) hue-rotate(-10deg)', grain:.2 },
+  vintage: { label:'Vintage Warm', css:'sepia(.35) saturate(1.4) contrast(1.05)', grain:.2 },
   sepia:   { label:'Sepia',      css:'sepia(.9) contrast(1.1)', grain:.15 },
-  grainy:  { label:'Grainy Disposable', css:'contrast(1.25) saturate(1.3) brightness(1.08)', grain:.55 },
-  fade:    { label:'Faded Film', css:'contrast(.85) brightness(1.1) saturate(.8)', grain:.3 }
+  grainy:  { label:'Grainy Film', css:'contrast(1.25) saturate(1.3)', grain:.55 }
 };
 
 const $ = id => document.getElementById(id);
@@ -112,7 +108,6 @@ function updateCounter(){
   const rem = Math.max(0, CFG.max - used);
   $('counter').textContent = 'Sisa: ' + rem + '/' + CFG.max;
   $('shutter').disabled = rem <= 0;
-  if (rem <= 0) status('Film habis! Lihat hasilnya di Galeri 🎞️');
 }
 function status(t){ $('status').textContent = t; }
 
@@ -131,10 +126,10 @@ function applyFilter(){
 async function startCamera(){
   if (stream) stream.getTracks().forEach(t=>t.stop());
   try {
-    stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:facing, width:{ideal:1440}, height:{ideal:1920} }, audio:false });
+    stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:facing, width:{ideal:1280}, height:{ideal:1280} }, audio:false });
     $('video').srcObject = stream;
     $('video').style.transform = facing==='user' ? 'scaleX(-1)' : 'none';
-  } catch(e){ status('Izinkan akses kamera untuk mulai memotret.'); }
+  } catch(e){ status('Izinkan akses kamera di pengaturan browser.'); }
 }
 $('flipBtn').onclick = ()=>{ facing = facing==='user'?'environment':'user'; startCamera(); };
 
@@ -144,34 +139,21 @@ $('shutter').onclick = ()=>{
   $('flash').classList.add('on'); setTimeout(()=>$('flash').classList.remove('on'),60);
   const c = $('canvas'), ctx = c.getContext('2d');
   const w = v.videoWidth, h = v.videoHeight;
-  const tw = Math.min(w, h*3/4), th = tw*4/3;
-  c.width = 1200; c.height = 1600;
+  const sz = Math.min(w, h);
+  c.width = 1000; c.height = 1000;
   ctx.save();
   if (facing==='user'){ ctx.translate(c.width,0); ctx.scale(-1,1); }
   ctx.filter = FILTERS[current].css;
-  ctx.drawImage(v,(w-tw)/2,(h-th)/2,tw,th,0,0,c.width,c.height);
+  ctx.drawImage(v, (w-sz)/2, (h-sz)/2, sz, sz, 0, 0, c.width, c.height);
   ctx.restore(); ctx.filter='none';
-  addGrain(ctx,c.width,c.height,FILTERS[current].grain);
-  addVignette(ctx,c.width,c.height);
   addDateStamp(ctx,c.width,c.height);
   c.toBlob(b=>{ blob=b; $('preview').src=URL.createObjectURL(b); $('preview').style.display='block';
-    $('controls').style.display='none'; $('actions').style.display='flex'; $('filters').style.visibility='hidden'; },'image/jpeg',.88);
+    $('controls').style.display='none'; $('actions').style.display='flex'; $('filters').style.visibility='hidden'; },'image/jpeg',.9);
 };
-function addGrain(ctx,w,h,amt){
-  if (!amt) return;
-  const d = ctx.getImageData(0,0,w,h), p = d.data, s = amt*70;
-  for (let i=0;i<p.length;i+=4){ const n=(Math.random()-.5)*s; p[i]+=n; p[i+1]+=n; p[i+2]+=n; }
-  ctx.putImageData(d,0,0);
-}
-function addVignette(ctx,w,h){
-  const g = ctx.createRadialGradient(w/2,h/2,w*.35,w/2,h/2,w*.85);
-  g.addColorStop(0,'rgba(0,0,0,0)'); g.addColorStop(1,'rgba(0,0,0,.45)');
-  ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
-}
 function addDateStamp(ctx,w,h){
   const d=new Date(), t="'"+String(d.getFullYear()).slice(2)+' '+(d.getMonth()+1)+' '+d.getDate();
-  ctx.font='bold 44px "Space Mono", monospace'; ctx.fillStyle='#ff8a3d'; ctx.shadowColor='#ff5a00'; ctx.shadowBlur=12;
-  ctx.textAlign='right'; ctx.fillText(t,w-50,h-50); ctx.shadowBlur=0;
+  ctx.font='bold 38px "Space Mono", monospace'; ctx.fillStyle='#ff8a3d';
+  ctx.textAlign='right'; ctx.fillText(t,w-40,h-40);
 }
 function resetView(){
   blob=null; $('preview').style.display='none';
@@ -179,7 +161,19 @@ function resetView(){
 }
 $('retake').onclick = resetView;
 
-// Simpan data ke Google Sheets via parameter GET (Aman dari CORS)
+$('save').onclick = async ()=>{
+  if (!blob || busy) return; busy=true; $('save').disabled=true; status('Mengupload...');
+  try {
+    const fd = new FormData();
+    fd.append('file', blob); fd.append('upload_preset', CFG.preset);
+    fd.append('folder','disposable-camera'); fd.append('tags', guestId);
+    
+    // 1. Upload ke Cloudinary
+    const r = await fetch('https://api.cloudinary.com/v1_1/'+CFG.cloud+'/image/upload',{ method:'POST', body:fd });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error ? j.error.message : 'Upload Cloudinary gagal');
+    
+    // 2. Kirim ke Google Apps Script via metode GET parameter (Bebas CORS 100%)
     const queryParams = new URLSearchParams({
       action: 'save',
       guestId: guestId,
@@ -191,31 +185,8 @@ $('retake').onclick = resetView;
       height: j.height
     });
 
-    await fetch(API_URL + '?' + queryParams.toString(), {
-      method: 'GET',
-      mode: 'no-cors'
-    });
-
-    busy = false; 
-    $('save').disabled = false;
-    used++; 
-    localStorage.setItem('ddc_used', used); 
-    updateCounter(); 
-    resetView();
-    status('Tersimpan! ✓');
+    await fetch(API_URL + '?' + queryParams.toString(), { method: 'GET', mode: 'no-cors' });
     
-// Kirim data ke Google Sheets via Apps Script
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      body: JSON.stringify({ guestId, guestName, filter: current, imageUrl: j.secure_url, publicId: j.public_id, width: j.width, height: j.height })
-    });
-    const resText = await res.text();
-    // Membersihkan tag HTML pembungkus dari HtmlService untuk mengatasi CORS
-    const cleanJson = resText.replace(/<\/?[^>]+(>|$)/g, "").trim();
-    const result = JSON.parse(cleanJson);
-    
-    if (!result.ok) throw new Error(result.error || 'Gagal menyimpan ke database');
-
     busy=false; $('save').disabled=false;
     used++; localStorage.setItem('ddc_used', used); updateCounter(); resetView();
     status('Tersimpan! ✓');
@@ -224,7 +195,7 @@ $('retake').onclick = resetView;
 
 used = Number(localStorage.getItem('ddc_used')||0); updateCounter(); applyFilter();
 if (!guestName){ $('nameModal').style.display='flex'; }
-$('nameBtn').onclick = ()=>{ guestName = $('nameInput').value.trim()||'Tamu'; localStorage.setItem('ddc_name',guestName); $('nameModal').style.display='none'; };
+$('nameBtn').onclick = ()=>{ guestName = $('nameInput'].value.trim()||'Tamu'; localStorage.setItem('ddc_name',guestName); $('nameModal').style.display='none'; };
 startCamera();
 </script>
 </body>
