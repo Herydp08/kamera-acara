@@ -179,15 +179,30 @@ function resetView(){
 }
 $('retake').onclick = resetView;
 
-$('save').onclick = async ()=>{
-  if (!blob || busy) return; busy=true; $('save').disabled=true; status('Mengupload...');
-  try {
-    const fd = new FormData();
-    fd.append('file', blob); fd.append('upload_preset', CFG.preset);
-    fd.append('folder','disposable-camera'); fd.append('tags', guestId);
-    const r = await fetch('https://api.cloudinary.com/v1_1/'+CFG.cloud+'/image/upload',{ method:'POST', body:fd });
-    const j = await r.json();
-    if (!r.ok) throw new Error(j.error ? j.error.message : 'Upload gagal');
+// Simpan data ke Google Sheets via parameter GET (Aman dari CORS)
+    const queryParams = new URLSearchParams({
+      action: 'save',
+      guestId: guestId,
+      guestName: guestName,
+      filter: current,
+      imageUrl: j.secure_url,
+      publicId: j.public_id,
+      width: j.width,
+      height: j.height
+    });
+
+    await fetch(API_URL + '?' + queryParams.toString(), {
+      method: 'GET',
+      mode: 'no-cors'
+    });
+
+    busy = false; 
+    $('save').disabled = false;
+    used++; 
+    localStorage.setItem('ddc_used', used); 
+    updateCounter(); 
+    resetView();
+    status('Tersimpan! ✓');
     
 // Kirim data ke Google Sheets via Apps Script
     const res = await fetch(API_URL, {
