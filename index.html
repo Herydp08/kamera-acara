@@ -545,20 +545,22 @@ $('adminLoginBtn').onclick = () => {
 $('closeAdminLogin').onclick = () => {$('adminModal').style.display = 'none'; };
 $('closeAdminControl').onclick = () => {$('adminModal').style.display = 'none'; };
 
-// Tombol Reset Global yang berdampak ke semua perangkat tamu
+// Tombol Reset Quota di Panel Admin
 $('resetQuotaBtn').onclick = async () => {
   const newMax = $('maxPhotoSelect').value;
-  status('Memproses reset global...');
+  status('Memperbarui kuota...');
   try {
     const res = await fetch(`${API_URL}?action=adminReset&pin=1234&maxPhotos=${newMax}`);
     const result = await res.json();
     if (result.status === 'success') {
-      localStorage.setItem('ddc_reset_token', result.resetToken);
+      // Hanya mereset hitungan penggunaan jepretan di perangkat ini ke 0
       localStorage.setItem('ddc_used', 0);
       used = 0;
       maxPhotos = Number(newMax);
+      localStorage.setItem('ddc_max', maxPhotos);
       updateCounter();
-      alert('Berhasil! Kuota seluruh perangkat tamu direset dan batas maksimal diatur ke ' + newMax + ' foto.');
+      
+      alert('Berhasil! Kuota jepretan direset dan batas maksimal diatur ke ' + maxPhotos + ' foto.');
       $('adminModal').style.display = 'none';
       status('');
     } else {
