@@ -430,6 +430,8 @@ function playShutterSound() {
   } catch(e) {}
 }
 
+// ... (kode sebelumnya tetap sama) ...
+
 $('shutter').onclick = ()=>{
   if (used >= maxPhotos) return;
   const v = $('video'); 
@@ -440,32 +442,46 @@ $('shutter').onclick = ()=>{
   setTimeout(()=>$('flash').classList.remove('on'), 80);
   
   const c = $('canvas'), ctx = c.getContext('2d');
-  const w = v.videoWidth, h = v.videoHeight;
-  const sz = Math.min(w, h);
+  // Ukuran canvas selalu dibuat kotak sempurna (1:1)
   c.width = 1000; c.height = 1000;
+  const sz = Math.min(v.videoWidth, v.videoHeight);
   
   ctx.save();
-  if (facing === 'user'){ ctx.translate(c.width, 0); ctx.scale(-1, 1); }
+  if (facing === 'user'){ 
+    // Efek cermin untuk kamera depan
+    ctx.translate(c.width, 0); 
+    ctx.scale(-1, 1); 
+  }
   ctx.filter = FILTERS[current].css;
-  ctx.drawImage(v, (w-sz)/2, (h-sz)/2, sz, sz, 0, 0, c.width, c.height);
+  // Gambar bagian tengah video ke canvas
+  ctx.drawImage(v, (v.videoWidth-sz)/2, (v.videoHeight-sz)/2, sz, sz, 0, 0, c.width, c.height);
   ctx.restore(); 
   ctx.filter = 'none';
   
-  const stampText = `'${yy} ${Number(mm)} ${Number(dd)}`;
+  // --- PERUBAHAN WATERMARK TANGGAL DI SINI ---
+  const d = new Date();
+  const t = "'" + String(d.getFullYear()).slice(2) + ' ' + (d.getMonth()+1) + ' ' + d.getDate();
   ctx.font = 'bold 42px "Space Mono", monospace'; 
-  ctx.fillStyle = '#ff7b3d';
-  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.fillStyle = '#ff7b3d'; // Warna oranye khas
+  ctx.shadowColor = 'rgba(0,0,0,0.8)'; // Efek bayangan agar terbaca jelas
   ctx.shadowBlur = 4;
   ctx.textAlign = 'right'; 
-  ctx.fillText(stampText, w-40, h-40);
+  
+  // Asli (di tengah): ctx.fillText(t, c.width - 40, c.height / 2); 
+  // Baru (di bawah, pojok kanan):
+  ctx.fillText(t, c.width - 40, c.height - 40); 
+  // -------------------------------------------
   
   c.toBlob(b=>{ 
     blob = b; 
     $('preview').src = URL.createObjectURL(b); 
-    $('preview').style.display = 'block';$('controls').style.display = 'none'; 
-    $('actions').style.display = 'flex';$('filters').style.display = 'none'; 
+    $('preview').style.display = 'block';
+    $('controls').style.display = 'none'; 
+    $('actions').style.display = 'flex'; 
+    $('filters').style.display = 'none'; 
   }, 'image/jpeg', 0.92);
 };
+// ... (kode sesudahnya tetap sama) ...
 
 function resetView(){
   blob = null; 
