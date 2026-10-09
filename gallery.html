@@ -1,62 +1,189 @@
 <!DOCTYPE html>
-<html>
+<html lang="id">
 <head>
 <base target="_top">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Fraunces:ital,wght@1,600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Fraunces:ital,wght@1,600&display=swap" rel="stylesheet">
 <style>
-  :root{--bg:#0e0d0c;--panel:#1b1917;--ink:#f3ead8;--muted:#9a9082;--accent:#ff6b2c}
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{background:var(--bg);color:var(--ink);font-family:'Space Mono',monospace;min-height:100vh}
-  header{position:sticky;top:0;z-index:5;background:#0e0d0ce6;backdrop-filter:blur(10px);padding:16px 20px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #2a2622}
-  h1{font-family:'Fraunces',serif;font-style:italic;font-size:24px}
-  .meta{font-size:11px;color:var(--muted);margin-top:2px}
-  .live{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--accent);margin-right:6px}
-  .link{color:var(--accent);text-decoration:none;font-size:12px;border:1px solid var(--accent);padding:8px 12px;border-radius:999px}
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px;padding:20px;max-width:1400px;margin:0 auto}
-  .print{background:#f4efe4;padding:8px 8px 30px;border-radius:3px;box-shadow:0 8px 20px #0009;position:relative}
-  .print img{width:100%;aspect-ratio:1;object-fit:cover;display:block;background:#222}
-  .print span{position:absolute;bottom:7px;left:10px;right:10px;color:#3a332a;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .empty{text-align:center;color:var(--muted);padding:80px 20px}
+  :root {
+    --bg: #0c0b0a;
+    --panel: #161412;
+    --border: #292420;
+    --ink: #f4ecdf;
+    --muted: #8c8275;
+    --accent: #ff6b35;
+    --accent-glow: rgba(255, 107, 53, 0.35);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { min-height: 100%; background: var(--bg); color: var(--ink); font-family: 'Space Mono', monospace; }
+
+  .app {
+    max-width: 440px;
+    margin: 0 auto;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    padding: 16px;
+    gap: 16px;
+  }
+
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 6px;
+  }
+  .brand h2 {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 19px;
+    color: var(--ink);
+  }
+  .brand p {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.5px;
+    margin-top: 1px;
+  }
+  
+  .back-btn {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--ink);
+    padding: 6px 14px;
+    border-radius: 99px;
+    font: inherit;
+    font-size: 11px;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  .gallery-container {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding-bottom: 30px;
+  }
+
+  .photo-card {
+    background: var(--panel);
+    border-radius: 20px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .photo-frame {
+    position: relative;
+    aspect-ratio: 1/1;
+    border-radius: 14px;
+    overflow: hidden;
+    background: #000;
+    border: 1px solid var(--border);
+  }
+
+  .photo-frame img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .photo-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 4px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .guest-name {
+    color: var(--ink);
+    font-weight: 700;
+  }
+
+  .empty-state {
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+    margin-top: 60px;
+    line-height: 1.6;
+  }
+  
+  .loading {
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+    margin-top: 40px;
+  }
 </style>
 </head>
 <body>
-<header>
-  <div>
-    <h1>Our Wedding Day</h1>
-    <div class="meta"><span class="live"></span><span id="count">Memuat...</span></div>
+<div class="app">
+  <header>
+    <div class="brand">
+      <h2>Galeri Tamu</h2>
+      <p>Momen Kebersamaan</p>
+    </div>
+    <a href="index.html" class="back-btn">← Kamera</a>
+  </header>
+
+  <div class="gallery-container" id="galleryContainer">
+    <div class="loading" id="loadingText">Memuat foto... ⏳</div>
   </div>
-  <a class="link" href="index.html">← Kamera</a>
-</header>
-<div class="grid" id="grid"></div>
-<div class="empty" id="empty" style="display:none">Belum ada foto. Jadilah yang pertama! 📸</div>
+</div>
 
 <script>
 const API_URL = "https://script.google.com/macros/s/AKfycbyGJ-l6k9q95nJCkS_67diDIdIZ3HHFIgXcI9PoooOFF01tTH2NfJ82W32K1-OEYrMYYg/exec";
 
-const grid = document.getElementById('grid');
-function esc(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-
-async function load(){
+async function loadGallery() {
+  const container = document.getElementById('galleryContainer');
   try {
     const res = await fetch(API_URL);
-    const text = await res.text();
-    const data = JSON.parse(text);
+    const data = await res.json();
     
-    document.getElementById('count').textContent = data.total + ' foto · live';
-    document.getElementById('empty').style.display = data.total ? 'none' : 'block';
-    
-    grid.innerHTML = data.photos.map(p =>
-      '<div class="print"><img loading="lazy" src="'+esc(p.thumb)+'" alt=""><span>'+esc(p.guestName)+'</span></div>'
-    ).join('');
-  } catch(e) {
-    document.getElementById('count').textContent = 'Gagal memuat';
-    console.error(e);
+    container.innerHTML = '';
+
+    if (!data || data.length === 0) {
+      container.innerHTML = '<div class="empty-state">Belum ada foto yang di-upload.<br>Jadilah yang pertama mengambil foto! 📸</div>';
+      return;
+    }
+
+    // Urutkan dari yang terbaru (opsional)
+    data.reverse().forEach(item => {
+      const card = document.createElement('div');
+      card.className = 'photo-card';
+
+      const dateStr = item.timestamp ? new Date(item.timestamp).toLocaleString('id-ID', {
+        dateStyle: 'medium',
+        timeStyle: 'short'
+      }) : '';
+
+      card.innerHTML = `
+        <div class="photo-frame">
+          <img src="${item.imageUrl}" alt="Foto Tamu" loading="lazy">
+        </div>
+        <div class="photo-info">
+          <span class="guest-name">${item.guestName || 'Tamu'}</span>
+          <span>${dateStr}</span>
+        </div>
+      `;
+      container.appendChild(card);
+    });
+
+  } catch (err) {
+    container.innerHTML = '<div class="empty-state" style="color:#ff6b35;">Gagal memuat galeri.<br>Periksa koneksi internet Anda.</div>';
+    console.error(err);
   }
 }
-load();
-setInterval(load, 10000);
+
+loadGallery();
 </script>
 </body>
 </html>
