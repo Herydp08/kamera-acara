@@ -211,7 +211,7 @@
 <div class="app">
   <header>
     <div class="brand">
-      <h2 id="adminTrigger" title="Klik 3x untuk Admin">Adhy & Destin</h2>
+      <h2 id="adminTrigger" title="Klik 3x untuk Admin">Dinda & Fajar</h2>
       <p>Disposable Camera</p>
     </div>
     <div class="date-badge" id="liveDate">-- -- --</div>
@@ -281,7 +281,7 @@
         <option value="14">14 Foto</option>
         <option value="15" selected>15 Foto</option>
       </select>
-      <button id="resetQuotaBtn" style="background:#d9534f; margin-top:8px;">Reset Global (Semua Perangkat Tamu)</button>
+      <button id="resetQuotaBtn" style="background:#d9534f; margin-top:8px;">Reset Kuota Perangkat Ini</button>
       <button class="btn-secondary" id="closeAdminControl">Tutup Panel</button>
     </div>
   </div>
@@ -324,26 +324,15 @@ if (!guestId) {
 }
 let guestName = localStorage.getItem('ddc_name');
 
-// Sinkronisasi Konfigurasi & Reset Global dari Server GAS saat halaman dibuka
 async function syncConfig() {
   try {
     const res = await fetch(API_URL + '?action=getConfig');
     const data = await res.json();
     maxPhotos = Number(data.maxPhotos) || 15;
-    const serverResetToken = data.resetToken || 0;
-    
-    const localResetToken = localStorage.getItem('ddc_reset_token') || 0;
-    if (serverResetToken > localResetToken) {
-      // Jika admin melakukan reset global baru, reset perangkat ini
-      localStorage.setItem('ddc_reset_token', serverResetToken);
-      localStorage.setItem('ddc_used', 0);
-      used = 0;
-    } else {
-      used = Number(localStorage.getItem('ddc_used') || 0);
-    }
   } catch(e) {
-    used = Number(localStorage.getItem('ddc_used') || 0);
+    maxPhotos = Number(localStorage.getItem('ddc_max') || 15);
   }
+  used = Number(localStorage.getItem('ddc_used') || 0);
   updateCounter();
 }
 
@@ -430,8 +419,6 @@ function playShutterSound() {
   } catch(e) {}
 }
 
-// ... (kode sebelumnya tetap sama) ...
-
 $('shutter').onclick = ()=>{
   if (used >= maxPhotos) return;
   const v = $('video'); 
@@ -442,46 +429,35 @@ $('shutter').onclick = ()=>{
   setTimeout(()=>$('flash').classList.remove('on'), 80);
   
   const c = $('canvas'), ctx = c.getContext('2d');
-  // Ukuran canvas selalu dibuat kotak sempurna (1:1)
-  c.width = 1000; c.height = 1000;
   const sz = Math.min(v.videoWidth, v.videoHeight);
+  c.width = 1000; c.height = 1000;
   
   ctx.save();
   if (facing === 'user'){ 
-    // Efek cermin untuk kamera depan
     ctx.translate(c.width, 0); 
     ctx.scale(-1, 1); 
   }
   ctx.filter = FILTERS[current].css;
-  // Gambar bagian tengah video ke canvas
   ctx.drawImage(v, (v.videoWidth-sz)/2, (v.videoHeight-sz)/2, sz, sz, 0, 0, c.width, c.height);
   ctx.restore(); 
   ctx.filter = 'none';
   
-  // --- PERUBAHAN WATERMARK TANGGAL DI SINI ---
-  const d = new Date();
-  const t = "'" + String(d.getFullYear()).slice(2) + ' ' + (d.getMonth()+1) + ' ' + d.getDate();
+  // Watermark tanggal di pojok kanan bawah foto
+  const stampText = `'${yy} ${Number(mm)} ${Number(dd)}`;
   ctx.font = 'bold 42px "Space Mono", monospace'; 
-  ctx.fillStyle = '#ff7b3d'; // Warna oranye khas
-  ctx.shadowColor = 'rgba(0,0,0,0.8)'; // Efek bayangan agar terbaca jelas
+  ctx.fillStyle = '#ff7b3d';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
   ctx.shadowBlur = 4;
   ctx.textAlign = 'right'; 
-  
-  // Asli (di tengah): ctx.fillText(t, c.width - 40, c.height / 2); 
-  // Baru (di bawah, pojok kanan):
-  ctx.fillText(t, c.width - 40, c.height - 40); 
-  // -------------------------------------------
+  ctx.fillText(stampText, c.width - 40, c.height - 40);
   
   c.toBlob(b=>{ 
     blob = b; 
     $('preview').src = URL.createObjectURL(b); 
-    $('preview').style.display = 'block';
-    $('controls').style.display = 'none'; 
-    $('actions').style.display = 'flex'; 
-    $('filters').style.display = 'none'; 
+    $('preview').style.display = 'block';$('controls').style.display = 'none'; 
+    $('actions').style.display = 'flex';$('filters').style.display = 'none'; 
   }, 'image/jpeg', 0.92);
 };
-// ... (kode sesudahnya tetap sama) ...
 
 function resetView(){
   blob = null; 
@@ -561,7 +537,6 @@ $('adminLoginBtn').onclick = () => {
 $('closeAdminLogin').onclick = () => {$('adminModal').style.display = 'none'; };
 $('closeAdminControl').onclick = () => {$('adminModal').style.display = 'none'; };
 
-// Tombol Reset Quota di Panel Admin
 $('resetQuotaBtn').onclick = async () => {
   const newMax = $('maxPhotoSelect').value;
   status('Memperbarui kuota...');
@@ -569,13 +544,11 @@ $('resetQuotaBtn').onclick = async () => {
     const res = await fetch(`${API_URL}?action=adminReset&pin=1234&maxPhotos=${newMax}`);
     const result = await res.json();
     if (result.status === 'success') {
-      // Hanya mereset hitungan penggunaan jepretan di perangkat ini ke 0
       localStorage.setItem('ddc_used', 0);
       used = 0;
       maxPhotos = Number(newMax);
       localStorage.setItem('ddc_max', maxPhotos);
       updateCounter();
-      
       alert('Berhasil! Kuota jepretan direset dan batas maksimal diatur ke ' + maxPhotos + ' foto.');
       $('adminModal').style.display = 'none';
       status('');
