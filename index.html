@@ -344,10 +344,12 @@ function applyFilter(){
 }
 
 async function startCamera(){
-  if (stream) stream.getTracks().forEach(t => t.stop());
+  if (stream) {
+    stream.getTracks().forEach(t => t.stop());
+  }
   try {
     stream = await navigator.mediaDevices.getUserMedia({ 
-      video: { facingMode: { ideal: facing } }, 
+      video: { facingMode: facing }, 
       audio: false 
     });
     const videoElement = $('video');
@@ -357,6 +359,7 @@ async function startCamera(){
     status('');
   } catch(e) {
     status('Gagal membuka kamera. Izinkan akses kamera di browser.');
+    console.error("Camera error:", e);
   }
 }
 
@@ -540,8 +543,9 @@ if (!guestName){
   $('nameModal').style.display = 'flex'; 
 }
 
+// PERBAIKAN: Menggunakan tanda kurung yang benar $('nameInput').value
 $('nameBtn').onclick = ()=>{ 
-  guestName = $('nameInput'].value.trim() || 'Tamu Kehormatan'; 
+  guestName = $('nameInput').value.trim() || 'Tamu Kehormatan'; 
   localStorage.setItem('ddc_name', guestName); 
   $('nameModal').style.display = 'none'; 
   startCamera();
