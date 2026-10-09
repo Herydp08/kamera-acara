@@ -25,8 +25,7 @@
   .back-btn:hover { background: var(--border); }
   
   .gallery-container { display: flex; flex-direction: column; gap: 16px; padding-bottom: 30px; }
-  .photo-card { background: var(--panel); border-radius: 20px; padding: 12px; border: 1px solid var(--border); box-shadow: 0 10px 30px rgba(0,0,0,0.4); display: flex; flex-direction: column; gap: 10px; transition: transform 0.2s; }
-  .photo-card:hover { transform: translateY(-2px); }
+  .photo-card { background: var(--panel); border-radius: 20px; padding: 12px; border: 1px solid var(--border); box-shadow: 0 10px 30px rgba(0,0,0,0.4); display: flex; flex-direction: column; gap: 10px; }
   .photo-frame { position: relative; aspect-ratio: 1/1; border-radius: 14px; overflow: hidden; background: #000; border: 1px solid var(--border); }
   .photo-frame img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .photo-info { display: flex; justify-content: space-between; align-items: center; padding: 0 4px; font-size: 11px; color: var(--muted); }
@@ -51,15 +50,21 @@
 </div>
 
 <script>
-// MASUKKAN URL WEB APP GOOGLE APPS SCRIPT ANDA DI SINI
 const API_URL = "https://script.google.com/macros/s/AKfycbzyyRyNx3NFHa5UNwcRgSUW2iTL8l6FLFoenCAP05l1cRW8i6vf1COi4x0GLMl7Rvzz/exec";
 
 async function loadGallery() {
   const container = document.getElementById('galleryContainer');
   try {
-    const res = await fetch(API_URL);
-    const data = await res.json();
+    const res = await fetch(API_URL, {
+      method: 'GET',
+      redirect: 'follow'
+    });
     
+    if (!res.ok) {
+      throw new Error(`HTTP Error: ${res.status}`);
+    }
+
+    const data = await res.json();
     container.innerHTML = '';
 
     if (!Array.isArray(data) || data.length === 0) {
@@ -68,13 +73,22 @@ async function loadGallery() {
     }
 
     data.reverse().forEach(item => {
+      if (!item.imageUrl) return;
+
       const card = document.createElement('div');
       card.className = 'photo-card';
 
-      const dateStr = item.timestamp ? new Date(item.timestamp).toLocaleString('id-ID', {
-        dateStyle: 'medium',
-        timeStyle: 'short'
-      }) : '';
+      let dateStr = '';
+      if (item.timestamp) {
+        try {
+          dateStr = new Date(item.timestamp).toLocaleString('id-ID', {
+            dateStyle: 'medium',
+            timeStyle: 'short'
+          });
+        } catch(e) {
+          dateStr = '';
+        }
+      }
 
       card.innerHTML = `
         <div class="photo-frame">
@@ -89,8 +103,11 @@ async function loadGallery() {
     });
 
   } catch (err) {
-    container.innerHTML = '<div class="empty-state" style="color:#ff6b35;">Gagal memuat galeri.<br>Periksa koneksi internet Anda.</div>';
-    console.error(err);
+    console.error('Fetch error:', err);
+    container.innerHTML = `<div class="empty-state" style="color:#ff6b35;">
+      Gagal memuat galeri.<br>
+      <small style="font-size:10px; color:var(--muted);">${err.message}</small>
+    </div>`;
   }
 }
 
