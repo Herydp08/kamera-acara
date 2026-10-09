@@ -67,3 +67,359 @@
   .card .btn-secondary { background: var(--border); color: var(--ink); margin-top: 8px; box-shadow: none; }
 </style>
 </head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand">
+      <h2 id="adminTrigger" title="Klik 3x untuk Panel Admin">Adhy & Destin</h2>
+      <p>Disposable Digital Camera</p>
+    </div>
+    <div class="date-badge" id="liveDate">-- -- --</div>
+  </header>
+
+  <div class="camera-box">
+    <div class="viewfinder">
+      <video id="video" autoplay playsinline muted></video>
+      <img id="preview" alt="Preview Foto">
+      <div class="grain" id="grain"></div>
+      <div class="flash" id="flash"></div>
+      <div class="lens-switcher" id="filters"></div>
+    </div>
+
+    <div class="control-panel" id="controls">
+      <button class="btn-icon" id="flashBtn" title="Senter / Flash">⚡</button>
+      <div class="counter-badge" title="Sisa Jepretan">
+        <span class="counter-num" id="counterNum">--</span>
+        <span class="counter-lbl">Sisa</span>
+      </div>
+      <button class="shutter-main" id="shutter" title="Jepret Foto"></button>
+      <button class="btn-icon" id="flipBtn" title="Putar Kamera">⟲</button>
+      <a class="btn-icon" href="gallery.html" style="text-decoration:none;" title="Lihat Galeri">▦</a>
+    </div>
+
+    <div class="actions" id="actions">
+      <button class="retake" id="retake">Ulangi</button>
+      <button class="save" id="save">Simpan & Upload</button>
+    </div>
+  </div>
+  <div class="status" id="status"></div>
+</div>
+
+<div class="modal" id="nameModal" style="display:none">
+  <div class="card">
+    <h2>Momen Spesial</h2>
+    <p>Silakan masukkan nama kamu sebelum mengabadikan momen 📸</p>
+    <input id="nameInput" placeholder="Nama / Panggilan kamu" maxlength="40">
+    <button id="nameBtn">Mulai Kamera</button>
+  </div>
+</div>
+
+<div class="modal" id="adminModal" style="display:none">
+  <div class="card">
+    <h2>Panel Admin</h2>
+    <p id="adminDesc">Masukkan PIN admin (1234):</p>
+    <div id="adminLoginArea">
+      <input type="password" id="adminPin" placeholder="PIN Admin">
+      <button id="adminLoginBtn">Masuk</button>
+      <button class="btn-secondary" id="closeAdminLogin">Batal</button>
+    </div>
+    <div id="adminControlArea" style="display:none; text-align:left;">
+      <label style="font-size:11px; color:var(--muted);">Batas Maksimal Jepretan (Global):</label>
+      <select id="maxPhotoSelect" style="margin-top:6px;">
+        <option value="7">7 Foto</option>
+        <option value="8">8 Foto</option>
+        <option value="10">10 Foto</option>
+        <option value="12">12 Foto</option>
+        <option value="15" selected>15 Foto</option>
+      </select>
+      <button id="resetQuotaBtn" style="background:#ff6b35; margin-top:8px;">Simpan Pengaturan</button>
+      <button id="resetLocalUsedBtn" style="background:#d9534f; margin-top:8px;">Reset Kuota HP Ini</button>
+      <button class="btn-secondary" id="closeAdminControl">Tutup</button>
+    </div>
+  </div>
+</div>
+
+<canvas id="canvas" style="display:none"></canvas>
+
+<script>
+const API_URL = "https://script.google.com/macros/s/AKfycbzyyRyNx3NFHa5UNwcRgSUW2iTL8l6FLFoenCAP05l1cRW8i6vf1COi4x0GLMl7Rvzz/exec";
+
+const CFG = {
+  cloud: "rfth8pyv",
+  preset: "disposable-camera",
+  folder: "disposable-camera"
+};
+
+let maxPhotos = 15;
+let used = 0;
+
+const FILTERS = {
+  normal:  { label:'1×',   css:'none', grain:0.15 },
+  vintage: { label:'90s',  css:'sepia(0.35) saturate(1.4) contrast(1.1)', grain:0.25 },
+  warm:    { label:'Warm', css:'contrast(1.15) saturate(1.3) hue-rotate(-10deg)', grain:0.2 },
+  mono:    { label:'Mono', css:'grayscale(1) contrast(1.3)', grain:0.35 }
+};
+
+const $ = id => document.getElementById(id);
+let current = 'normal', facing = 'environment', stream = null, blob = null, busy = false, torchOn = false;
+
+const today = new Date();
+const dd = String(today.getDate()).padStart(2, '0');
+const mm = String(today.getMonth() + 1).padStart(2, '0');
+const yy = String(today.getFullYear()).slice(2);
+$('liveDate').textContent = `${dd} ${mm} '${yy}`;
+
+let guestId = localStorage.getItem('ddc_gid');
+if (!guestId) { 
+  guestId = 'g_' + Date.now().toString(36) + Math.random().toString(36).slice(2,8); 
+  localStorage.setItem('ddc_gid', guestId); 
+}
+let guestName = localStorage.getItem('ddc_name');
+
+async function syncConfig() {
+  try {
+    const res = await fetch(API_URL + '?action=getConfig');
+    const data = await res.json();
+    if (data.maxPhotos) maxPhotos = Number(data.maxPhotos);
+  } catch(e) {
+    maxPhotos = Number(localStorage.getItem('ddc_max') || 15);
+  }
+  used = Number(localStorage.getItem('ddc_used') || 0);
+  updateCounter();
+}
+
+function updateCounter(){
+  const rem = Math.max(0, maxPhotos - used);
+  $('counterNum').textContent = rem;
+  $('shutter').disabled = rem <= 0;
+}
+
+function status(t){ $('status').textContent = t; }
+
+Object.entries(FILTERS).forEach(([k,f])=>{
+  const b = document.createElement('button');
+  b.className = 'lens-btn' + (k === current ? ' active' : '');
+  b.textContent = f.label; 
+  b.dataset.k = k;
+  b.onclick = ()=>{ 
+    current = k; 
+    document.querySelectorAll('.lens-btn').forEach(x=>x.classList.toggle('active', x.dataset.k === k)); 
+    applyFilter(); 
+  };
+  $('filters').appendChild(b);
+});
+
+function applyFilter(){
+  $('video').style.filter = FILTERS[current].css;
+  $('grain').style.opacity = FILTERS[current].grain;
+}
+
+async function startCamera(){
+  if (stream) { 
+    stream.getTracks().forEach(t => t.stop()); 
+  }
+  
+  // Opsi fallback kamera
+  const constraints = [
+    { video: { facingMode: facing, width: { ideal: 1080 }, height: { ideal: 1440 } }, audio: false },
+    { video: { facingMode: facing }, audio: false },
+    { video: true, audio: false }
+  ];
+
+  for (let constraint of constraints) {
+    try {
+      stream = await navigator.mediaDevices.getUserMedia(constraint);
+      const videoElement = $('video');
+      videoElement.srcObject = stream;
+      await videoElement.play();
+      videoElement.style.transform = facing === 'user' ? 'scaleX(-1)' : 'none';
+      status('');
+      return;
+    } catch(e) {
+      console.warn("Mencoba fallback kamera:", e);
+    }
+  }
+  
+  status('Gagal membuka kamera. Pastikan izin kamera sudah diberikan di browser.');
+}
+
+$('flipBtn').onclick = ()=>{ 
+  facing = facing === 'user' ? 'environment' : 'user'; 
+  torchOn = false;
+  $('flashBtn').classList.remove('active-flash');
+  startCamera(); 
+};
+
+$('flashBtn').onclick = async () => {
+  if (!stream) return;
+  const track = stream.getVideoTracks()[0];
+  const capabilities = track.getCapabilities ? track.getCapabilities() : {};
+  if (!capabilities.torch) { alert('Senter tidak didukung perangkat ini.'); return; }
+  try {
+    torchOn = !torchOn;
+    await track.applyConstraints({ advanced: [{ torch: torchOn }] });
+    $('flashBtn').classList.toggle('active-flash', torchOn);
+  } catch (err) { status('Gagal mengubah mode senter.'); }
+};
+
+function playShutterSound() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(120, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(40, ctx.currentTime + 0.08);
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.08);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(); osc.stop(ctx.currentTime + 0.08);
+  } catch(e) {}
+}
+
+$('shutter').onclick = ()=>{
+  if (used >= maxPhotos) return;
+  const v = $('video'); 
+  if (!v.videoWidth) return;
+  
+  playShutterSound();
+  $('flash').classList.add('on'); 
+  setTimeout(()=>$('flash').classList.remove('on'), 80);
+  
+  const c = $('canvas'), ctx = c.getContext('2d');
+  const sz = Math.min(v.videoWidth, v.videoHeight);
+  c.width = 1000; c.height = 1000;
+  
+  ctx.save();
+  if (facing === 'user'){ ctx.translate(c.width, 0); ctx.scale(-1, 1); }
+  ctx.filter = FILTERS[current].css;
+  ctx.drawImage(v, (v.videoWidth-sz)/2, (v.videoHeight-sz)/2, sz, sz, 0, 0, c.width, c.height);
+  ctx.restore(); 
+  ctx.filter = 'none';
+  
+  const stampText = `'${yy} ${mm} ${dd}`;
+  ctx.font = 'bold 38px "Space Mono", monospace'; 
+  ctx.fillStyle = '#ff7b3d';
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 4;
+  ctx.textAlign = 'right'; 
+  ctx.fillText(stampText, c.width - 35, c.height - 35);
+  
+  c.toBlob(b=>{ 
+    blob = b; 
+    $('preview').src = URL.createObjectURL(b); 
+    $('preview').style.display = 'block';$('controls').style.display = 'none'; 
+    $('actions').style.display = 'flex';$('filters').style.display = 'none'; 
+  }, 'image/jpeg', 0.90);
+};
+
+function resetView(){
+  blob = null; 
+  $('preview').style.display = 'none';$('controls').style.display = 'flex'; 
+  $('actions').style.display = 'none';$('filters').style.display = 'flex';
+}
+$('retake').onclick = resetView;
+
+$('save').onclick = async ()=>{
+  if (!blob || busy) return; 
+  busy = true; 
+  $('save').disabled = true; 
+  status('Mengunggah foto...');
+  
+  try {
+    const fd = new FormData();
+    fd.append('file', blob); 
+    fd.append('upload_preset', CFG.preset);
+    fd.append('folder', CFG.folder); 
+    fd.append('tags', guestId);
+    
+    const r = await fetch('https://api.cloudinary.com/v1_1/' + CFG.cloud + '/image/upload', { method: 'POST', body: fd });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error ? j.error.message : 'Gagal upload');
+    
+    const queryParams = new URLSearchParams({
+      action: 'save', guestId, guestName, filter: current,
+      imageUrl: j.secure_url, publicId: j.public_id, width: j.width, height: j.height
+    });
+
+    await fetch(API_URL + '?' + queryParams.toString(), { method: 'GET', mode: 'no-cors' });
+    
+    busy = false; 
+    $('save').disabled = false;
+    used++; 
+    localStorage.setItem('ddc_used', used); 
+    updateCounter(); 
+    resetView();
+    status('Tersimpan ke galeri! ✓');
+    setTimeout(() => status(''), 3000);
+  } catch(e){ 
+    busy = false; 
+    $('save').disabled = false; 
+    status('Error: ' + e.message); 
+  }
+};
+
+let adminClicks = 0;
+$('adminTrigger').onclick = () => {
+  adminClicks++;
+  setTimeout(() => { adminClicks = 0; }, 1200);
+  if (adminClicks >= 3) {
+    adminClicks = 0;
+    $('adminModal').style.display = 'flex';$('adminLoginArea').style.display = 'block';
+    $('adminControlArea').style.display = 'none';$('adminPin').value = '';
+  }
+};
+
+$('adminLoginBtn').onclick = () => {
+  if ($('adminPin').value === '1234') {$('adminLoginArea').style.display = 'none';
+    $('adminControlArea').style.display = 'block';$('maxPhotoSelect').value = maxPhotos;
+  } else { alert('PIN Admin Salah!'); }
+};
+
+$('closeAdminLogin').onclick = () => {$('adminModal').style.display = 'none'; };
+$('closeAdminControl').onclick = () => {$('adminModal').style.display = 'none'; };
+
+$('resetQuotaBtn').onclick = async () => {
+  const newMax = $('maxPhotoSelect').value;
+  status('Memperbarui kuota...');
+  try {
+    const res = await fetch(`${API_URL}?action=adminReset&pin=1234&maxPhotos=${newMax}`);
+    const result = await res.json();
+    if (result.status === 'success') {
+      maxPhotos = Number(newMax);
+      localStorage.setItem('ddc_max', maxPhotos);
+      updateCounter();
+      alert('Kuota global berhasil disimpan: ' + maxPhotos + ' foto.');
+      $('adminModal').style.display = 'none';
+      status('');
+    } else { alert('Gagal: ' + result.message); }
+  } catch(err) { alert('Terjadi kesalahan koneksi.'); }
+};
+
+$('resetLocalUsedBtn').onclick = () => {
+  localStorage.setItem('ddc_used', 0);
+  used = 0;
+  updateCounter();
+  alert('Kuota HP ini berhasil di-reset.');
+  $('adminModal').style.display = 'none';
+};
+
+// Inisialisasi awal
+syncConfig();
+applyFilter();
+
+if (!guestName){ 
+  $('nameModal').style.display = 'flex'; 
+} else { 
+  startCamera(); 
+}
+
+$('nameBtn').onclick = ()=>{ 
+  guestName = $('nameInput').value.trim() || 'Tamu Kehormatan'; 
+  localStorage.setItem('ddc_name', guestName); 
+  $('nameModal').style.display = 'none'; 
+  startCamera();
+};
+</script>
+</body>
+</html>
