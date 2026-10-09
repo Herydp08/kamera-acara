@@ -211,10 +211,10 @@
 <div class="app">
   <header>
     <div class="brand">
-      <h2 id="adminTrigger" title="Klik 3x untuk Admin">Adhy & Destin</h2>
+      <h2 id="adminTrigger" title="Klik 3x untuk Admin">Dinda & Fajar</h2>
       <p>Disposable Camera</p>
     </div>
-    <div class="date-badge" id="liveDate">11 07 '26</div>
+    <div class="date-badge" id="liveDate">-- -- --</div>
   </header>
 
   <div class="camera-box">
@@ -250,7 +250,6 @@
   <div class="status" id="status"></div>
 </div>
 
-<!-- Modal Nama Tamu -->
 <div class="modal" id="nameModal" style="display:none">
   <div class="card">
     <h2>Momen Spesial</h2>
@@ -260,7 +259,6 @@
   </div>
 </div>
 
-<!-- Modal Login & Kontrol Admin -->
 <div class="modal" id="adminModal" style="display:none">
   <div class="card">
     <h2>Panel Admin</h2>
@@ -283,7 +281,7 @@
         <option value="14">14 Foto</option>
         <option value="15" selected>15 Foto</option>
       </select>
-      <button id="resetQuotaBtn" style="background:#d9534f; margin-top:8px;">Reset Sisa Jepretan Perangkat Ini</button>
+      <button id="resetQuotaBtn" style="background:#d9534f; margin-top:8px;">Reset Global (Semua Perangkat Tamu)</button>
       <button class="btn-secondary" id="closeAdminControl">Tutup Panel</button>
     </div>
   </div>
@@ -299,7 +297,8 @@ const CFG = {
   preset: "disposable-camera"
 };
 
-let maxPhotos = Number(localStorage.getItem('ddc_max') || 15);
+let maxPhotos = 15;
+let used = 0;
 
 const FILTERS = {
   normal:  { label:'1×',   css:'none', grain:0.15 },
@@ -309,7 +308,14 @@ const FILTERS = {
 };
 
 const $ = id => document.getElementById(id);
-let current = 'normal', facing = 'environment', stream = null, blob = null, used = 0, busy = false, torchOn = false;
+let current = 'normal', facing = 'environment', stream = null, blob = null, busy = false, torchOn = false;
+
+const today = new Date();
+const dd = String(today.getDate()).padStart(2, '0');
+const mm = String(today.getMonth() + 1).padStart(2, '0');
+const yy = String(today.getFullYear()).slice(2);
+const formattedDate = `${dd} ${mm} '${yy}`;
+$('liveDate').textContent = formattedDate;
 
 let guestId = localStorage.getItem('ddc_gid');
 if (!guestId) { 
@@ -317,6 +323,29 @@ if (!guestId) {
   localStorage.setItem('ddc_gid', guestId); 
 }
 let guestName = localStorage.getItem('ddc_name');
+
+// Sinkronisasi Konfigurasi & Reset Global dari Server GAS saat halaman dibuka
+async function syncConfig() {
+  try {
+    const res = await fetch(API_URL + '?action=getConfig');
+    const data = await res.json();
+    maxPhotos = Number(data.maxPhotos) || 15;
+    const serverResetToken = data.resetToken || 0;
+    
+    const localResetToken = localStorage.getItem('ddc_reset_token') || 0;
+    if (serverResetToken > localResetToken) {
+      // Jika admin melakukan reset global baru, reset perangkat ini
+      localStorage.setItem('ddc_reset_token', serverResetToken);
+      localStorage.setItem('ddc_used', 0);
+      used = 0;
+    } else {
+      used = Number(localStorage.getItem('ddc_used') || 0);
+    }
+  } catch(e) {
+    used = Number(localStorage.getItem('ddc_used') || 0);
+  }
+  updateCounter();
+}
 
 function updateCounter(){
   const rem = Math.max(0, maxPhotos - used);
@@ -359,7 +388,6 @@ async function startCamera(){
     status('');
   } catch(e) {
     status('Gagal membuka kamera. Izinkan akses kamera di browser.');
-    console.error("Camera error:", e);
   }
 }
 
@@ -423,31 +451,26 @@ $('shutter').onclick = ()=>{
   ctx.restore(); 
   ctx.filter = 'none';
   
-  const d = new Date();
-  const t = "'" + String(d.getFullYear()).slice(2) + ' ' + (d.getMonth()+1) + ' ' + d.getDate();
+  const stampText = `'${yy} ${Number(mm)} ${Number(dd)}`;
   ctx.font = 'bold 42px "Space Mono", monospace'; 
   ctx.fillStyle = '#ff7b3d';
   ctx.shadowColor = 'rgba(0,0,0,0.8)';
   ctx.shadowBlur = 4;
   ctx.textAlign = 'right'; 
-  ctx.fillText(t, w-40, h-40);
+  ctx.fillText(stampText, w-40, h-40);
   
   c.toBlob(b=>{ 
     blob = b; 
     $('preview').src = URL.createObjectURL(b); 
-    $('preview').style.display = 'block';
-    $('controls').style.display = 'none'; 
-    $('actions').style.display = 'flex'; 
-    $('filters').style.display = 'none'; 
+    $('preview').style.display = 'block';$('controls').style.display = 'none'; 
+    $('actions').style.display = 'flex';$('filters').style.display = 'none'; 
   }, 'image/jpeg', 0.92);
 };
 
 function resetView(){
   blob = null; 
-  $('preview').style.display = 'none';
-  $('controls').style.display = 'flex'; 
-  $('actions').style.display = 'none'; 
-  $('filters').style.display = 'flex';
+  $('preview').style.display = 'none';$('controls').style.display = 'flex'; 
+  $('actions').style.display = 'none';$('filters').style.display = 'flex';
 }
 $('retake').onclick = resetView;
 
@@ -498,20 +521,14 @@ $('save').onclick = async ()=>{
   }
 };
 
-used = Number(localStorage.getItem('ddc_used') || 0); 
-updateCounter(); 
-applyFilter();
-
 let adminClicks = 0;
 $('adminTrigger').onclick = () => {
   adminClicks++;
   setTimeout(() => { adminClicks = 0; }, 1000);
   if (adminClicks >= 3) {
     adminClicks = 0;
-    $('adminModal').style.display = 'flex';
-    $('adminLoginArea').style.display = 'block';
-    $('adminControlArea').style.display = 'none';
-    $('adminPin').value = '';
+    $('adminModal').style.display = 'flex';$('adminLoginArea').style.display = 'block';
+    $('adminControlArea').style.display = 'none';$('adminPin').value = '';
   }
 };
 
@@ -519,31 +536,46 @@ $('adminLoginBtn').onclick = () => {
   const pin = $('adminPin').value;
   if (pin === '1234') {
     $('adminLoginArea').style.display = 'none';
-    $('adminControlArea').style.display = 'block';
-    $('maxPhotoSelect').value = maxPhotos;
+    $('adminControlArea').style.display = 'block';$('maxPhotoSelect').value = maxPhotos;
   } else {
     alert('PIN Admin Salah!');
   }
 };
 
-$('closeAdminLogin').onclick = () => { $('adminModal').style.display = 'none'; };
-$('closeAdminControl').onclick = () => { $('adminModal').style.display = 'none'; };
+$('closeAdminLogin').onclick = () => {$('adminModal').style.display = 'none'; };
+$('closeAdminControl').onclick = () => {$('adminModal').style.display = 'none'; };
 
-$('resetQuotaBtn').onclick = () => {
-  used = 0;
-  localStorage.setItem('ddc_used', 0);
-  maxPhotos = Number($('maxPhotoSelect').value);
-  localStorage.setItem('ddc_max', maxPhotos);
-  updateCounter();
-  alert('Berhasil! Kuota jepretan direset dan batas maksimal diatur ke ' + maxPhotos + ' foto.');
-  $('adminModal').style.display = 'none';
+// Tombol Reset Global yang berdampak ke semua perangkat tamu
+$('resetQuotaBtn').onclick = async () => {
+  const newMax = $('maxPhotoSelect').value;
+  status('Memproses reset global...');
+  try {
+    const res = await fetch(`${API_URL}?action=adminReset&pin=1234&maxPhotos=${newMax}`);
+    const result = await res.json();
+    if (result.status === 'success') {
+      localStorage.setItem('ddc_reset_token', result.resetToken);
+      localStorage.setItem('ddc_used', 0);
+      used = 0;
+      maxPhotos = Number(newMax);
+      updateCounter();
+      alert('Berhasil! Kuota seluruh perangkat tamu direset dan batas maksimal diatur ke ' + newMax + ' foto.');
+      $('adminModal').style.display = 'none';
+      status('');
+    } else {
+      alert('Gagal: ' + result.message);
+    }
+  } catch(err) {
+    alert('Terjadi kesalahan koneksi.');
+  }
 };
+
+syncConfig();
+applyFilter();
 
 if (!guestName){ 
   $('nameModal').style.display = 'flex'; 
 }
 
-// PERBAIKAN: Menggunakan tanda kurung yang benar $('nameInput').value
 $('nameBtn').onclick = ()=>{ 
   guestName = $('nameInput').value.trim() || 'Tamu Kehormatan'; 
   localStorage.setItem('ddc_name', guestName); 
